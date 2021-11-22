@@ -180,7 +180,6 @@ struct frame {
     struct bu_vls fr_after_cmd;	/* local commands, after frame done */
 };
 
-
 struct servers {
     struct pkg_conn *sr_pc;		/* PKC_NULL means slot not in use */
     struct bu_list sr_work;
@@ -278,6 +277,23 @@ struct frame *FreeFrame;
 /*
  * Macros to manage lists of frames
  */
+
+#define INIT_FRAME(p) { \
+	(p)->fr_magic = FRAME_MAGIC; \
+	bu_vls_init(&(p)->fr_cmd); \
+	bu_vls_init(&(p)->fr_after_cmd); \
+	(p)->fr_forw = NULL; \
+	(p)->fr_back = NULL; \
+	(p)->fr_number = 0; \
+	(p)->fr_server = 0; \
+	(p)->fr_filename = NULL; \
+	(p)->fr_tempfile = 0; \
+	(p)->fr_width = 0; \
+	(p)->fr_height = 0; \
+	(p)->fr_nrays = 0; \
+	(p)->fr_cpu = 0.0; \
+	(p)->fr_needgettree = 0; \
+    }
 
 #define GET_FRAME(p) { \
 	if (((p)=FreeFrame) == FRAME_NULL) {\
@@ -560,7 +576,10 @@ interactive_cmd(FILE *fp)
 	/* The rest happens when the connections close */
 	return;
     }
-    if ((i=strlen(buf)) <= 0) return;
+
+    i = strlen(buf);
+    if (i <= 0)
+	return;
 
     /* Feeble allowance for comments */
     if (buf[0] == '#') return;
@@ -639,7 +658,8 @@ check_input(int waittime)
     for (i = 0; i <(int)MAXSERVERS; i++) {
 	pc = servers[i].sr_pc;
 	if (pc == PKC_NULL) continue;
-	if ((val = pkg_process(pc)) < 0)
+	val = pkg_process(pc);
+	if (val < 0)
 	    drop_server(&servers[i], "pkg_process() error");
     }
 
@@ -2121,6 +2141,7 @@ cd_movie(const int argc, const char **argv)
     int a, b;
     int i;
 
+
     if (argc < 4)
 	return 1;
 
@@ -2139,6 +2160,9 @@ cd_movie(const int argc, const char **argv)
 	perror(argv[1]);
 	return -1;
     }
+
+    INIT_FRAME(&dummy_frame);
+
     /* Skip over unwanted beginning frames */
     for (i = 0; i < a; i++) {
 	if (read_matrix(fp, &dummy_frame) <= 0) {
@@ -3170,7 +3194,6 @@ ph_pixels(struct pkg_conn *pc, char *buf)
 	drop_server(sp, "bu_struct_import error");
 	goto out;
     }
-    i = (size_t)cnt;
 
     if (rem_debug) {
 	bu_log("%s %s %d/%d..%d, ray=%d, cpu=%.2g, el=%g\n",
@@ -3227,7 +3250,6 @@ ph_pixels(struct pkg_conn *pc, char *buf)
     if (pc->pkc_len - ext.ext_nbytes < i) {
 	bu_log("short scanline, s/b=%zu, was=%zu\n",
 	       i, pc->pkc_len - ext.ext_nbytes);
-	i = pc->pkc_len - ext.ext_nbytes;
 	drop_server(sp, "short scanline");
 	goto out;
     }

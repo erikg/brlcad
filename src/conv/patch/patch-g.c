@@ -1673,7 +1673,6 @@ proc_wedge(size_t cnt)
 	proc_region(name);
 
     /* Mirror Processing - duplicates above code! */
-    ret = 0;
     for (k=0; k <= (cnt-1) && in[k].mirror != 0; k+=4) {
 
 	VSET(pt8[0], in[k].x, -in[k].y, in[k].z);
@@ -3415,6 +3414,9 @@ main(int argc, char **argv)
     thk = (fastf_t *)bu_calloc(MAX_INPUTS, sizeof(fastf_t), "thk");
     mirror = (int *)bu_calloc(MAX_INPUTS, sizeof(int), "mirror");
 
+    if (!in || !nm || !list || !XVAL || !YVAL || !ZVAL || !thicks || !RADIUS || !thk || !mirror)
+	bu_exit(BRLCAD_ERROR, "Memory allocation failure\n");
+
     /* initialize tolerance structure */
     TOL.magic = BN_TOL_MAGIC;
     TOL.dist = 0.01;
@@ -3633,7 +3635,6 @@ main(int argc, char **argv)
 		}
 	    }
 	}
-	done = 1;
     }
 
     /* Read the material codes file, which is a component code list

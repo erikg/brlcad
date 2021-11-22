@@ -2400,13 +2400,17 @@ append_faces_from_loops(
     const TrimmedFace *orig_face,
     const LoopBooleanResult &new_loops)
 {
+    std::vector<TrimmedFace *> o;
     LoopBooleanResult combined_loops = combine_loops(orig_face, new_loops);
 
     // make a face from each outerloop, using appropriate innerloops
     for (size_t i = 0; i < combined_loops.outerloops.size(); ++i) {
-	out.Append(make_face_from_loops(orig_face,
+	o.push_back(make_face_from_loops(orig_face,
 					combined_loops.outerloops[i],
 					combined_loops.innerloops));
+    }
+    for (size_t i = 0; i < o.size(); i++) {
+	out.Append(o[i]);
     }
 }
 
@@ -3438,6 +3442,7 @@ get_face_intersection_curves(
     const ON_Brep *brep2,
     op_type operation)
 {
+    std::vector<Subsurface *> st1, st2;
     std::set<int> unused1, unused2;
     std::set<int> finalform1, finalform2;
     ON_ClassArray<ON_SimpleArray<SSICurve> > curves_array;
@@ -3538,10 +3543,12 @@ get_face_intersection_curves(
     }
 
     for (int i = 0; i < surf_count1; i++) {
-	surf_tree1.Append(new Subsurface(brep1->m_S[i]->Duplicate()));
+	Subsurface *ss = new Subsurface(brep1->m_S[i]->Duplicate());
+	st1.push_back(ss);
     }
     for (int i = 0; i < surf_count2; i++) {
-	surf_tree2.Append(new Subsurface(brep2->m_S[i]->Duplicate()));
+	Subsurface *ss = new Subsurface(brep2->m_S[i]->Duplicate());
+	st2.push_back(ss);
     }
 
     curves_array.SetCapacity(face_count1 + face_count2);
@@ -3553,7 +3560,7 @@ get_face_intersection_curves(
     // calculate intersection curves
     for (int i = 0; i < face_count1; i++) {
 
-	if (surf_tree1.Count() < brep1->m_F[i].m_si + 1)
+	if ((int)st1.size() < brep1->m_F[i].m_si + 1)
 	    continue;
 
 	for (int j = 0; j < face_count2; j++) {
@@ -3582,8 +3589,8 @@ get_face_intersection_curves(
 				       NULL,
 				       NULL,
 				       NULL,
-				       surf_tree1[brep1->m_F[i].m_si],
-				       surf_tree2[brep2->m_F[j].m_si]);
+				       st1[brep1->m_F[i].m_si],
+				       st2[brep2->m_F[j].m_si]);
 		if (results <= 0) {
 		    continue;
 		}
@@ -3636,6 +3643,14 @@ get_face_intersection_curves(
 	}
     }
 
+    for (size_t i = 0; i < st1.size(); i++) {
+	surf_tree1.Append(st1[i]);
+    }
+
+    for (size_t i = 0; i < st2.size(); i++) {
+	surf_tree2.Append(st2[i]);
+    }
+
     return curves_array;
 }
 
@@ -3656,26 +3671,30 @@ HIDDEN ON_SimpleArray<ON_Curve *>get_face_trim_loop(const ON_Brep *brep, int fac
 HIDDEN ON_SimpleArray<TrimmedFace *>
 get_trimmed_faces(const ON_Brep *brep)
 {
-    ON_SimpleArray<TrimmedFace *> trimmed_faces;
+    std::vector<TrimmedFace *> trimmed_faces;
     int face_count = brep->m_F.Count();
     for (int i = 0; i < face_count; i++) {
 	const ON_BrepFace &face = brep->m_F[i];
 	const ON_SimpleArray<int> &loop_index = face.m_li;
+	if (loop_index.Count() <= 0) {
+	    continue;
+	}
 
 	TrimmedFace *trimmed_face = new TrimmedFace();
 	trimmed_face->m_face = &face;
-
-	if (loop_index.Count() > 0) {
-	    ON_SimpleArray<ON_Curve *> index_loop = get_face_trim_loop(brep, loop_index[0]);
-	    trimmed_face->m_outerloop = index_loop;
-	    for (int j = 1; j < loop_index.Count(); j++) {
-		index_loop = get_face_trim_loop(brep, loop_index[j]);
-		trimmed_face->m_innerloop.push_back(index_loop);
-	    }
+	ON_SimpleArray<ON_Curve *> index_loop = get_face_trim_loop(brep, loop_index[0]);
+	trimmed_face->m_outerloop = index_loop;
+	for (int j = 1; j < loop_index.Count(); j++) {
+	    index_loop = get_face_trim_loop(brep, loop_index[j]);
+	    trimmed_face->m_innerloop.push_back(index_loop);
 	}
-	trimmed_faces.Append(trimmed_face);
+	trimmed_faces.push_back(trimmed_face);
     }
-    return trimmed_faces;
+    ON_SimpleArray<TrimmedFace *> tf;
+    for (size_t i = 0; i < trimmed_faces.size(); i++) {
+	tf.Append(trimmed_faces[i]);
+    }
+    return tf;
 }
 
 
