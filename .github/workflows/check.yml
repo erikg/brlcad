@@ -27,203 +27,203 @@
 # https://github.com/actions/runner/issues/718
 #
 
-name: BRL-CAD
-
-on: [push]
-
-jobs:
-  windows:
-    name: Windows Latest MSVC
-    runs-on: windows-latest
-    strategy:
-      fail-fast: true
-    steps:
-      - name: Setup - CMake
-        uses: lukka/get-cmake@latest
-
-      - name: Setup - Ninja
-        uses: seanmiddleditch/gha-setup-ninja@master
-
-      - name: Cache Qt
-        id: cache-qt
-        uses: actions/cache@v1  # not v2!
-        with:
-          path: ../Qt
-          key: ${{ runner.os }}-QtCache
-
-      - name: Setup - Qt
-        uses: jurplel/install-qt-action@v2
-        with:
-          cached: ${{ steps.cache-qt.outputs.cache-hit }}
-
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Add github workspace to path
-        # https://github.community/t/deprecated-add-path/136621
-        run: echo "$ENV{GITHUB_WORKSPACE}" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
-
-      - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1.0.2
-
-      - name: Add cl.exe to PATH
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Configure
-        run: |
-          cmake -S . -B build -G Ninja -D CMAKE_C_COMPILER="cl.exe" -D CMAKE_CXX_COMPILER="cl.exe" -D ENABLE_ALL=ON -D CMAKE_BUILD_TYPE=Release -DBRLCAD_ENABLE_QT=ON
-          # We do the following in order to help ensure files are "flushed"
-          # to disk before compilation is attempted
-          # https://superuser.com/a/1553374/1286142
-          powershell Write-VolumeCache C
-          powershell Write-VolumeCache D
-
-      - name: Build
-        run: cd build && ninja -j1 -v && ninja check -v && ninja package
-
-        # Various other Windows build lines used for various types of testing.
-        # Preserved for reference, as the iterative time to figure out how to
-        # perform them was significant...
-        #run: cmake --build build --config Release --target package
-        #run: cd build && ninja -j1 -v STEPCODE_BLD && cd src/other/ext/STEPCODE_BLD-prefix/src/STEPCODE_BLD-build && ninja clean && ninja -j1 -v
-        #run: cmake --build build --config Release --target STEPCODE_BLD && cd build/src/other/ext/STEPCODE_BLD-prefix/src/STEPCODE_BLD-build && msbuild ALL_BUILD.vcxproj -t:clean && msbuild ALL_BUILD.vcxproj -v:diag
-
-        # For the moment the space demands are too extreme to enable this
-        # output for every compile test, but leave the enabling logic present
-        # in commented out form so it can be enabled as needed.
-#     - name: Upload Package
-#       uses: actions/upload-artifact@v2
-#       with:
-#         name: BRLCAD_Windows
-#         path: ${{ github.workspace }}/build/BRL-CAD*exe
-
-  linux:
-    name: Ubuntu Latest GCC
-    runs-on: ubuntu-20.04
-    strategy:
-      fail-fast: true
-    steps:
-      - name: Setup - CMake
-        uses: lukka/get-cmake@latest
-
-      - name: Setup - Ninja
-        uses: seanmiddleditch/gha-setup-ninja@master
-
-      - name: Setup - System
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          sudo apt-get update
-          # Install X/OpenGL dev pkgs
-          sudo apt-get install xserver-xorg-dev libx11-dev libxi-dev libxext-dev libglu1-mesa-dev
-          sudo apt-get clean
-
-      - name: Cache Qt
-        id: cache-qt
-        uses: actions/cache@v1  # not v2!
-        with:
-          path: ../Qt
-          key: ${{ runner.os }}-QtCache
-
-      - name: Setup - Qt
-        uses: jurplel/install-qt-action@v2
-        with:
-          cached: ${{ steps.cache-qt.outputs.cache-hit }}
-
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Configure
-        run: |
-          export PATH=$ENV{GITHUB_WORKSPACE}:$PATH
-          cmake -S . -G Ninja -B build -D ENABLE_ALL=ON -D CMAKE_BUILD_TYPE=Release -DBRLCAD_ENABLE_QT=ON
-
-      - name: Build
-        run: |
-          export PATH=$ENV{GITHUB_WORKSPACE}:$PATH
-          cmake --build build --config Release --target check
-          cmake --build build --config Release --target package
-
-        # For the moment the space demands are too extreme to enable this
-        # output for every compile test, but leave the enabling logic present
-        # in commented out form so it can be enabled as needed.
-#     - name: Upload Package
-#       uses: actions/upload-artifact@v2
-#       with:
-#         name: BRLCAD_Linux
-#         path: ${{ github.workspace }}/build/BRL-CAD*gz
-
-  osx:
-    name: macOS Latest Clang
-    runs-on: macos-latest
-    strategy:
-      fail-fast: true
-    steps:
-      - name: Setup - CMake
-        uses: lukka/get-cmake@latest
-
-      - name: Setup - Ninja
-        uses: seanmiddleditch/gha-setup-ninja@master
-
-      - name: Cache Qt
-        id: cache-qt
-        uses: actions/cache@v1  # not v2!
-        with:
-          path: ../Qt
-          key: ${{ runner.os }}-QtCache
-
-      - name: Setup - Qt
-        uses: jurplel/install-qt-action@v2
-        with:
-          cached: ${{ steps.cache-qt.outputs.cache-hit }}
-
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Configure
-        run: |
-          export PATH=$ENV{GITHUB_WORKSPACE}:$PATH
-          export CC=clang
-          export CXX=clang++
-          cmake -S . -G Ninja -B build -D ENABLE_ALL=ON -D CMAKE_BUILD_TYPE=Release -DBRLCAD_ENABLE_QT=ON
-
-      - name: Build
-        run: |
-          export PATH=$ENV{GITHUB_WORKSPACE}:$PATH
-          cd build && ninja -j1 && ninja -j1 package
-          #cmake --build build --config Release --target check
-          #cmake --build build --config Release --target package
-
-        # For the moment the space demands are too extreme to enable this
-        # output for every compile test, but leave the enabling logic present
-        # in commented out form so it can be enabled as needed.
-#     - name: Upload Package
-#       uses: actions/upload-artifact@v2
-#       with:
-#         name: BRLCAD_OSX
-#         path: ${{ github.workspace }}/build/BRL-CAD*gz
-
-  # A full distcheck is too expensive for the runners, but we can run the
-  # repository integrity check and make sure we can build source archives.
-  archives:
-    name: Source Archives
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: true
-    steps:
-      - name: Setup - CMake
-        uses: lukka/get-cmake@latest
-
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Configure
-        run: |
-          export PATH=$ENV{GITHUB_WORKSPACE}:$PATH
-          cmake -S . -B build_archives -D ENABLE_ALL=ON
-
-      - name: Build
-        run: |
-          export PATH=$ENV{GITHUB_WORKSPACE}:$PATH
-          cmake --build build_archives --config Debug --target distcheck-source_archives
-
+#name: BRL-CAD
+#
+#on: [push]
+#
+#jobs:
+#  windows:
+#    name: Windows Latest MSVC
+#    runs-on: windows-latest
+#    strategy:
+#      fail-fast: true
+#    steps:
+#      - name: Setup - CMake
+#        uses: lukka/get-cmake@latest
+#
+#      - name: Setup - Ninja
+#        uses: seanmiddleditch/gha-setup-ninja@master
+#
+#      - name: Cache Qt
+#        id: cache-qt
+#        uses: actions/cache@v1  # not v2!
+#        with:
+#          path: ../Qt
+#          key: ${{ runner.os }}-QtCache
+#
+#      - name: Setup - Qt
+#        uses: jurplel/install-qt-action@v2
+#        with:
+#          cached: ${{ steps.cache-qt.outputs.cache-hit }}
+#
+#      - name: Checkout
+#        uses: actions/checkout@v2
+#
+#      - name: Add github workspace to path
+#        # https://github.community/t/deprecated-add-path/136621
+#        run: echo "$ENV{GITHUB_WORKSPACE}" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
+#
+#      - name: Add msbuild to PATH
+#        uses: microsoft/setup-msbuild@v1.0.2
+#
+#      - name: Add cl.exe to PATH
+#        uses: ilammy/msvc-dev-cmd@v1
+#
+#      - name: Configure
+#        run: |
+#          cmake -S . -B build -G Ninja -D CMAKE_C_COMPILER="cl.exe" -D CMAKE_CXX_COMPILER="cl.exe" -D ENABLE_ALL=ON -D CMAKE_BUILD_TYPE=Release -DBRLCAD_ENABLE_QT=ON
+#          # We do the following in order to help ensure files are "flushed"
+#          # to disk before compilation is attempted
+#          # https://superuser.com/a/1553374/1286142
+#          powershell Write-VolumeCache C
+#          powershell Write-VolumeCache D
+#
+#      - name: Build
+#        run: cd build && ninja -j1 -v && ninja check -v && ninja package
+#
+#        # Various other Windows build lines used for various types of testing.
+#        # Preserved for reference, as the iterative time to figure out how to
+#        # perform them was significant...
+#        #run: cmake --build build --config Release --target package
+#        #run: cd build && ninja -j1 -v STEPCODE_BLD && cd src/other/ext/STEPCODE_BLD-prefix/src/STEPCODE_BLD-build && ninja clean && ninja -j1 -v
+#        #run: cmake --build build --config Release --target STEPCODE_BLD && cd build/src/other/ext/STEPCODE_BLD-prefix/src/STEPCODE_BLD-build && msbuild ALL_BUILD.vcxproj -t:clean && msbuild ALL_BUILD.vcxproj -v:diag
+#
+#        # For the moment the space demands are too extreme to enable this
+#        # output for every compile test, but leave the enabling logic present
+#        # in commented out form so it can be enabled as needed.
+##     - name: Upload Package
+##       uses: actions/upload-artifact@v2
+##       with:
+##         name: BRLCAD_Windows
+##         path: ${{ github.workspace }}/build/BRL-CAD*exe
+#
+#  linux:
+#    name: Ubuntu Latest GCC
+#    runs-on: ubuntu-20.04
+#    strategy:
+#      fail-fast: true
+#    steps:
+#      - name: Setup - CMake
+#        uses: lukka/get-cmake@latest
+#
+#      - name: Setup - Ninja
+#        uses: seanmiddleditch/gha-setup-ninja@master
+#
+#      - name: Setup - System
+#        env:
+#          DEBIAN_FRONTEND: noninteractive
+#        run: |
+#          sudo apt-get update
+#          # Install X/OpenGL dev pkgs
+#          sudo apt-get install xserver-xorg-dev libx11-dev libxi-dev libxext-dev libglu1-mesa-dev
+#          sudo apt-get clean
+#
+#      - name: Cache Qt
+#        id: cache-qt
+#        uses: actions/cache@v1  # not v2!
+#        with:
+#          path: ../Qt
+#          key: ${{ runner.os }}-QtCache
+#
+#      - name: Setup - Qt
+#        uses: jurplel/install-qt-action@v2
+#        with:
+#          cached: ${{ steps.cache-qt.outputs.cache-hit }}
+#
+#      - name: Checkout
+#        uses: actions/checkout@v2
+#
+#      - name: Configure
+#        run: |
+#          export PATH=$ENV{GITHUB_WORKSPACE}:$PATH
+#          cmake -S . -G Ninja -B build -D ENABLE_ALL=ON -D CMAKE_BUILD_TYPE=Release -DBRLCAD_ENABLE_QT=ON
+#
+#      - name: Build
+#        run: |
+#          export PATH=$ENV{GITHUB_WORKSPACE}:$PATH
+#          cmake --build build --config Release --target check
+#          cmake --build build --config Release --target package
+#
+#        # For the moment the space demands are too extreme to enable this
+#        # output for every compile test, but leave the enabling logic present
+#        # in commented out form so it can be enabled as needed.
+##     - name: Upload Package
+##       uses: actions/upload-artifact@v2
+##       with:
+##         name: BRLCAD_Linux
+##         path: ${{ github.workspace }}/build/BRL-CAD*gz
+#
+#  osx:
+#    name: macOS Latest Clang
+#    runs-on: macos-latest
+#    strategy:
+#      fail-fast: true
+#    steps:
+#      - name: Setup - CMake
+#        uses: lukka/get-cmake@latest
+#
+#      - name: Setup - Ninja
+#        uses: seanmiddleditch/gha-setup-ninja@master
+#
+#      - name: Cache Qt
+#        id: cache-qt
+#        uses: actions/cache@v1  # not v2!
+#        with:
+#          path: ../Qt
+#          key: ${{ runner.os }}-QtCache
+#
+#      - name: Setup - Qt
+#        uses: jurplel/install-qt-action@v2
+#        with:
+#          cached: ${{ steps.cache-qt.outputs.cache-hit }}
+#
+#      - name: Checkout
+#        uses: actions/checkout@v2
+#
+#      - name: Configure
+#        run: |
+#          export PATH=$ENV{GITHUB_WORKSPACE}:$PATH
+#          export CC=clang
+#          export CXX=clang++
+#          cmake -S . -G Ninja -B build -D ENABLE_ALL=ON -D CMAKE_BUILD_TYPE=Release -DBRLCAD_ENABLE_QT=ON
+#
+#      - name: Build
+#        run: |
+#          export PATH=$ENV{GITHUB_WORKSPACE}:$PATH
+#          cd build && ninja -j1 && ninja -j1 package
+#          #cmake --build build --config Release --target check
+#          #cmake --build build --config Release --target package
+#
+#        # For the moment the space demands are too extreme to enable this
+#        # output for every compile test, but leave the enabling logic present
+#        # in commented out form so it can be enabled as needed.
+##     - name: Upload Package
+##       uses: actions/upload-artifact@v2
+##       with:
+##         name: BRLCAD_OSX
+##         path: ${{ github.workspace }}/build/BRL-CAD*gz
+#
+#  # A full distcheck is too expensive for the runners, but we can run the
+#  # repository integrity check and make sure we can build source archives.
+#  archives:
+#    name: Source Archives
+#    runs-on: ubuntu-latest
+#    strategy:
+#      fail-fast: true
+#    steps:
+#      - name: Setup - CMake
+#        uses: lukka/get-cmake@latest
+#
+#      - name: Checkout
+#        uses: actions/checkout@v2
+#
+#      - name: Configure
+#        run: |
+#          export PATH=$ENV{GITHUB_WORKSPACE}:$PATH
+#          cmake -S . -B build_archives -D ENABLE_ALL=ON
+#
+#      - name: Build
+#        run: |
+#          export PATH=$ENV{GITHUB_WORKSPACE}:$PATH
+#          cmake --build build_archives --config Debug --target distcheck-source_archives
+#
