@@ -11,7 +11,7 @@ else(NOT DEFINED BRLCAD_BUILDTEST_EXTERNALS)
 
   if (BRLCAD_ENABLE_TCL)
 
-    include_directories(
+    set(UG_DIRS
       "${CMAKE_CURRENT_BINARY_DIR}/../../../include"
       "${CMAKE_CURRENT_SOURCE_DIR}/../../../include"
       "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/other/openNURBS"
@@ -19,6 +19,7 @@ else(NOT DEFINED BRLCAD_BUILDTEST_EXTERNALS)
       ${REGEX_INCLUDE_DIRS}
       ${TCL_INCLUDE_PATH}
       )
+    BRLCAD_INCLUDE_DIRS(UG_DIRS)
 
     # The build shims aren't so great at mocking the initialization
     # behavior of the real code.

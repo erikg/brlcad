@@ -341,13 +341,14 @@ if(NOT DEFINED BRLCAD_BUILDTEST_EXTERNALS)
 
 else(NOT DEFINED BRLCAD_BUILDTEST_EXTERNALS)
 
-  include_directories(
+  set(CREO_DIRS
     "${CMAKE_CURRENT_BINARY_DIR}/../../../include"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../../include"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/other/openNURBS"
     ${ZLIB_INCLUDE_DIRS}
     ${REGEX_INCLUDE_DIRS}
     )
+  BRLCAD_INCLUDE_DIRS(CREO_DIRS)
 
   # The build shims aren't so great at mocking the initialization
   # behavior of the real code.
