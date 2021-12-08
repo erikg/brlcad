@@ -107,6 +107,8 @@ ged_close(struct ged *gedp)
     }
 
     ged_free(gedp);
+    BU_PUT(gedp, struct ged);
+    gedp = NULL;
 }
 
 static void
